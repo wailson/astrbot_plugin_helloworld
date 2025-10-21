@@ -28,15 +28,15 @@ class MyPlugins(Star):
 
                 if choice == "1":
                     await event.send(event.plain_result("进入成语接龙模式，输入成语，输入“退出”可结束~"))
-                    await self.start_idiom_game(controller, event)
+                    await self.start_idiom_game(event, session_filter=SessionFilter())
 
                 elif choice == "2":
                     await event.send(event.plain_result("进入数字累加模式，输入数字，输入“退出”可结束~"))
-                    await self.start_number_sum(controller, event)
+                    await self.start_idiom_game(event, session_filter=SessionFilter())
 
                 elif choice == "3":
                     await event.send(event.plain_result("进入简单问答模式，输入问题，输入“退出”可结束~"))
-                    await self.start_simple_qa(controller, event)
+                    await self.start_idiom_game(event, session_filter=SessionFilter())
 
                 else:
                     await event.send(event.plain_result("无效选择，请输入 1, 2 或 3，或输入“退出”结束。"))
