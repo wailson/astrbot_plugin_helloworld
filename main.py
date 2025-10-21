@@ -3,13 +3,13 @@ from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Star, Context, register
 from astrbot.core.utils.session_waiter import session_waiter, SessionController, SessionFilter
 
+
 # 限制会话仅对某个用户生效
 class SingleUserFilter(SessionFilter):
     def __init__(self, user_id: str):
         self.user_id = user_id
 
     def filter(self, event: AstrMessageEvent) -> str:
-        """群聊返回 群ID:用户ID；私聊返回 用户ID"""
         try:
             gid = event.get_group_id()
         except AttributeError:
@@ -34,14 +34,14 @@ class MyPlugins(Star):
             "请输入功能编号进入，或输入“退出”结束"
         )
 
-    # 菜单会话（入口指令）
+    # 菜单入口指令
     @filter.command("菜单")
     @session_waiter(timeout=60, record_history_chains=False)
-    async def menu_waiter(self, controller: SessionController, event: AstrMessageEvent):
+    async def menu_waiter(self, event: AstrMessageEvent):
+        controller: SessionController = event.get_extra("session_controller")
         msg = event.message_str.strip()
 
         if controller.session_round == 1:
-            # 第一次进入会话时显示菜单
             await event.send(event.plain_result(self.show_menu_text()))
             controller.keep(timeout=60, reset_timeout=True)
             return
@@ -72,6 +72,11 @@ class MyPlugins(Star):
             await event.send(event.plain_result("成语接龙已结束~"))
             controller.stop()
             return
+        if idiom == "返回":
+            # 返回菜单
+            await self.menu_waiter(event)
+            controller.stop()
+            return
         if len(idiom) != 4:
             await event.send(event.plain_result("成语必须是四个字哦~"))
         else:
@@ -93,6 +98,10 @@ class MyPlugins(Star):
             self.sum_data[user_id] = 0
             controller.stop()
             return
+        if msg == "返回":
+            await self.menu_waiter(event)
+            controller.stop()
+            return
         if msg.isdigit():
             self.sum_data[user_id] += int(msg)
             await event.send(event.plain_result(f"当前总和：{self.sum_data[user_id]}"))
@@ -106,6 +115,10 @@ class MyPlugins(Star):
         question = event.message_str.strip()
         if question == "退出":
             await event.send(event.plain_result("问答会话已结束~"))
+            controller.stop()
+            return
+        if question == "返回":
+            await self.menu_waiter(event)
             controller.stop()
             return
         await event.send(event.plain_result(f"你问的是：{question}\n示例回答：这是一个测试回答~"))
