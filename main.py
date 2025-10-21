@@ -3,7 +3,7 @@ from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Star, Context, register
 from astrbot.core.utils.session_waiter import session_waiter, SessionController, SessionFilter
 
-# 自定义过滤器：会话只对某个用户生效
+# 限制会话仅对某个用户生效
 class SingleUserFilter(SessionFilter):
     def __init__(self, user_id: str):
         self.user_id = user_id
@@ -23,7 +23,7 @@ class SingleUserFilter(SessionFilter):
 class MyPlugins(Star):
     def __init__(self, context: Context):
         super().__init__(context)
-        self.sum_data = {}  # 保存数字累加的结果
+        self.sum_data = {}
 
     def show_menu_text(self) -> str:
         return (
@@ -34,25 +34,23 @@ class MyPlugins(Star):
             "请输入功能编号进入，或输入“退出”结束"
         )
 
-    # 菜单会话（入口）
+    # 菜单会话（入口指令）
     @filter.command("菜单")
     @session_waiter(timeout=60, record_history_chains=False)
     async def menu_waiter(self, controller: SessionController, event: AstrMessageEvent):
         msg = event.message_str.strip()
 
-        # 第一次进入会话时显示菜单
         if controller.session_round == 1:
+            # 第一次进入会话时显示菜单
             await event.send(event.plain_result(self.show_menu_text()))
             controller.keep(timeout=60, reset_timeout=True)
             return
 
-        # 退出菜单
         if msg == "退出":
             await event.send(event.plain_result("已退出菜单~"))
             controller.stop()
             return
 
-        # 根据选择进入功能会话
         if msg == "1":
             await event.send(event.plain_result("进入成语接龙模式~ 输入成语，输入“退出”可结束"))
             await self.start_idiom_game(event, session_filter=SingleUserFilter(event.get_sender_id()))
