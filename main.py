@@ -1,133 +1,98 @@
 import astrbot.api.message_components as Comp
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Star, Context, register
-from astrbot.core.utils.session_waiter import session_waiter, SessionController, SessionFilter
+from astrbot.core.utils.session_waiter import session_waiter, SessionController
 
-# 会话过滤器：确保同一个用户或同一个群内同一个用户
-class SingleUserFilter(SessionFilter):
-    def __init__(self, user_id: str):
-        self.user_id = user_id
-
-    def filter(self, event: AstrMessageEvent) -> str:
-        try:
-            gid = event.get_group_id()
-        except AttributeError:
-            gid = None
-        if gid:
-            return f"{gid}:{self.user_id}"
-        return self.user_id
-
-@register("menu_plugin", "YourName", "多功能菜单插件", "1.0.0")
+@register("menu_plugin", "YourName", "一个带菜单的演示插件", "1.0.0")
 class MyPlugins(Star):
     def __init__(self, context: Context):
         super().__init__(context)
+        # 数字累加数据存储
         self.sum_data = {}
 
-    def show_menu_text(self) -> str:
-        return (
-            "功能菜单：\n"
-            "1. 成语接龙\n"
-            "2. 数字累加\n"
-            "3. 简单问答\n"
-            "请输入功能编号进入，或输入“退出”结束"
-        )
-
-    # 入口命令：不要加 @session_waiter
     @filter.command("菜单")
-    async def menu_cmd(self, event: AstrMessageEvent):
-        await self.context.session_service.start_session(
-            func=self.menu_session,
-            session_filter=SingleUserFilter(event.get_sender_id()),
-            event=event
-        )
+    async def show_menu(self, event: AstrMessageEvent):
+        try:
+            # 修改为使用 await event.send()
+            await event.send(event.plain_result(
+                "功能菜单：\n1. 成语接龙\n2. 数字累加\n3. 简单问答\n请输入功能编号进入，或者输入“退出”结束。"
+            ))
+            
+            @session_waiter(timeout=60, record_history_chains=False)
+            async def menu_waiter(controller: SessionController, event: AstrMessageEvent):
+                choice = event.message_str.strip()
+                if choice == "退出":
+                    await event.send(event.plain_result("已退出菜单~"))
+                    controller.stop()
+                    return
+                if choice == "1":
+                    await event.send(event.plain_result("进入成语接龙模式，输入成语，输入“退出”可结束~"))
+                    await self.start_idiom_game(controller, event)
+                elif choice == "2":
+                    await event.send(event.plain_result("进入数字累加模式，输入数字，输入“退出”可结束~"))
+                    await self.start_number_sum(controller, event)
+                elif choice == "3":
+                    await event.send(event.plain_result("进入简单问答模式，输入问题，输入“退出”可结束~"))
+                    await self.start_simple_qa(controller, event)
+                else:
+                    await event.send(event.plain_result("无效选择，请输入 1, 2 或 3，或输入“退出”结束。"))
 
-    # 菜单的会话处理逻辑
-    @session_waiter(timeout=60, record_history_chains=False)
-    async def menu_session(self, controller: SessionController, event: AstrMessageEvent):
-        msg = event.message_str.strip()
+            try:
+                await menu_waiter(event)
+            except TimeoutError:
+                # 修改为使用 await event.send()
+                await event.send(event.plain_result("菜单会话超时了！"))
+            finally:
+                event.stop_event()
 
-        if controller.session_round == 1:
-            await event.send(event.plain_result(self.show_menu_text()))
-            controller.keep(timeout=60, reset_timeout=True)
-            return
+        except Exception as e:
+            # 修改为使用 await event.send()
+            await event.send(event.plain_result("发生错误：" + str(e)))
 
-        if msg == "退出":
-            await event.send(event.plain_result("已退出菜单~"))
-            controller.stop()
-            return
-
-        if msg == "1":
-            await event.send(event.plain_result("进入成语接龙模式~ 输入成语，输入“退出”结束"))
-            await self.context.session_service.start_session(
-                func=self.start_idiom_game,
-                session_filter=SingleUserFilter(event.get_sender_id()),
-                event=event
-            )
-        elif msg == "2":
-            await event.send(event.plain_result("进入数字累加模式~ 输入数字，输入“退出”结束"))
-            await self.context.session_service.start_session(
-                func=self.start_number_sum,
-                session_filter=SingleUserFilter(event.get_sender_id()),
-                event=event
-            )
-        elif msg == "3":
-            await event.send(event.plain_result("进入简单问答模式~ 输入问题，输入“退出”结束"))
-            await self.context.session_service.start_session(
-                func=self.start_simple_qa,
-                session_filter=SingleUserFilter(event.get_sender_id()),
-                event=event
-            )
-        else:
-            await event.send(event.plain_result("输入无效，请重新选择："))
-            controller.keep(timeout=60, reset_timeout=True)
-
-    # 成语接龙模式
+    # 成语接龙功能
     @session_waiter(timeout=60, record_history_chains=False)
     async def start_idiom_game(self, controller: SessionController, event: AstrMessageEvent):
-        msg = event.message_str.strip()
-        if controller.session_round == 1:
-            controller.keep(timeout=60, reset_timeout=True)
-            return
-        if msg == "退出":
-            await event.send(event.plain_result("成语接龙结束~"))
+        idiom = event.message_str.strip()
+        if idiom == "退出":
+            await event.send(event.plain_result("成语接龙已结束~"))
             controller.stop()
+            return
+        if len(idiom) != 4:
+            await event.send(event.plain_result("成语必须是四个字哦~"))
         else:
-            await event.send(event.plain_result(f"你输入的成语是：{msg}"))
-            controller.keep(timeout=60, reset_timeout=True)
+            await event.send(event.plain_result("接龙示例：先见之明"))
+        controller.keep(timeout=60, reset_timeout=True)
 
-    # 数字累加模式
+    # 数字累加功能
     @session_waiter(timeout=60, record_history_chains=False)
     async def start_number_sum(self, controller: SessionController, event: AstrMessageEvent):
         user_id = event.get_sender_id()
+        if user_id not in self.sum_data:
+            self.sum_data[user_id] = 0
         msg = event.message_str.strip()
 
-        if controller.session_round == 1:
-            self.sum_data[user_id] = 0
-            controller.keep(timeout=60, reset_timeout=True)
-            return
-
         if msg == "退出":
-            await event.send(event.plain_result(f"数字累加结束，总和为 {self.sum_data[user_id]}"))
+            await event.send(event.plain_result(f"数字累加结束，总和为：{self.sum_data[user_id]}"))
+            self.sum_data[user_id] = 0
             controller.stop()
+            return
+        
+        if msg.isdigit():
+            self.sum_data[user_id] += int(msg)
+            await event.send(event.plain_result(f"当前总和：{self.sum_data[user_id]}"))
         else:
-            try:
-                num = int(msg)
-                self.sum_data[user_id] += num
-                await event.send(event.plain_result(f"当前累加总和: {self.sum_data[user_id]}"))
-            except ValueError:
-                await event.send(event.plain_result("请输入有效的数字或“退出”"))
-            controller.keep(timeout=60, reset_timeout=True)
+            await event.send(event.plain_result("请输入数字或“退出”结束。"))
+        controller.keep(timeout=60, reset_timeout=True)
 
-    # 简单问答模式
+    # 简单问答功能
     @session_waiter(timeout=60, record_history_chains=False)
     async def start_simple_qa(self, controller: SessionController, event: AstrMessageEvent):
-        msg = event.message_str.strip()
-        if controller.session_round == 1:
-            controller.keep(timeout=60, reset_timeout=True)
-            return
-        if msg == "退出":
-            await event.send(event.plain_result("问答模式结束~"))
+        question = event.message_str.strip()
+        if question == "退出":
+            await event.send(event.plain_result("问答会话已结束~"))
             controller.stop()
-        else:
-            await event.send(event.plain_result(f"你问的是：{msg}，我暂时还不会回答哦"))
-            controller.keep(timeout=60, reset_timeout=True)
+            return
+
+        # 简单演示回答
+        await event.send(event.plain_result(f"你问的是：{question}\n示例回答：这是一个测试回答~"))
+        controller.keep(timeout=60, reset_timeout=True)
