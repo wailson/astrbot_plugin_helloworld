@@ -13,12 +13,13 @@ class MyPlugins(Star):
     @filter.command("菜单")
     async def show_menu(self, event: AstrMessageEvent):
         try:
-            # 修改为使用 await event.send()
+            # 发送菜单消息
             await event.send(event.plain_result(
                 "功能菜单：\n1. 成语接龙\n2. 数字累加\n3. 简单问答\n请输入功能编号进入，或者输入“退出”结束。"
             ))
             
-            @session_waiter(timeout=60, record_history_chains=False)
+            # 修改为正确的 session_waiter 使用方式
+            @session_waiter(timeout=60)
             async def menu_waiter(controller: SessionController, event: AstrMessageEvent):
                 choice = event.message_str.strip()
                 if choice == "退出":
@@ -40,17 +41,15 @@ class MyPlugins(Star):
             try:
                 await menu_waiter(event)
             except TimeoutError:
-                # 修改为使用 await event.send()
                 await event.send(event.plain_result("菜单会话超时了！"))
             finally:
                 event.stop_event()
 
         except Exception as e:
-            # 修改为使用 await event.send()
             await event.send(event.plain_result("发生错误：" + str(e)))
 
-    # 成语接龙功能
-    @session_waiter(timeout=60, record_history_chains=False)
+    # 成语接龙功能 - 修正 session_waiter 使用
+    @session_waiter(timeout=60)
     async def start_idiom_game(self, controller: SessionController, event: AstrMessageEvent):
         idiom = event.message_str.strip()
         if idiom == "退出":
@@ -63,8 +62,8 @@ class MyPlugins(Star):
             await event.send(event.plain_result("接龙示例：先见之明"))
         controller.keep(timeout=60, reset_timeout=True)
 
-    # 数字累加功能
-    @session_waiter(timeout=60, record_history_chains=False)
+    # 数字累加功能 - 修正 session_waiter 使用
+    @session_waiter(timeout=60)
     async def start_number_sum(self, controller: SessionController, event: AstrMessageEvent):
         user_id = event.get_sender_id()
         if user_id not in self.sum_data:
@@ -84,8 +83,8 @@ class MyPlugins(Star):
             await event.send(event.plain_result("请输入数字或“退出”结束。"))
         controller.keep(timeout=60, reset_timeout=True)
 
-    # 简单问答功能
-    @session_waiter(timeout=60, record_history_chains=False)
+    # 简单问答功能 - 修正 session_waiter 使用
+    @session_waiter(timeout=60)
     async def start_simple_qa(self, controller: SessionController, event: AstrMessageEvent):
         question = event.message_str.strip()
         if question == "退出":
