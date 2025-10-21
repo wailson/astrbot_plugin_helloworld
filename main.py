@@ -4,102 +4,85 @@ from astrbot.api.star import Star, Context, register
 from astrbot.core.utils.session_waiter import session_waiter, SessionController
 
 
-@register("menu_plugin", "YourName", "一个带菜单的演示插件", "1.0.0")
+@register("menu_plugin", "YourName", "菜单单会话插件示例", "1.0.0")
 class MyPlugins(Star):
     def __init__(self, context: Context):
         super().__init__(context)
-        self.sum_data = {}
+        self.current_mode = {}  # 保存每个用户当前的模式
+        self.sum_data = {}      # 保存数字累加数据
 
     @filter.command("菜单")
-    async def show_menu(self, event: AstrMessageEvent):
-        try:
+    @session_waiter(timeout=120, record_history_chains=False)
+    async def menu_session(self, controller: SessionController, event: AstrMessageEvent):
+        user_id = event.get_sender_id()
+        msg = event.message_str.strip()
+
+        # 第一次进入菜单或用户还没选模式
+        if user_id not in self.current_mode or self.current_mode[user_id] is None:
+            if msg == "退出":
+                await event.send(event.plain_result("菜单会话已退出~"))
+                self.current_mode.pop(user_id, None)
+                self.sum_data.pop(user_id, None)
+                controller.stop()
+                return
+
+            if msg == "1":
+                self.current_mode[user_id] = "idiom"
+                await event.send(event.plain_result("进入成语接龙模式，请输入成语，输入“返回”回菜单"))
+            elif msg == "2":
+                self.current_mode[user_id] = "sum"
+                self.sum_data[user_id] = 0
+                await event.send(event.plain_result("进入数字累加模式，请输入数字，输入“返回”回菜单"))
+            elif msg == "3":
+                self.current_mode[user_id] = "qa"
+                await event.send(event.plain_result("进入简单问答模式，请输入你的问题，输入“返回”回菜单"))
+            else:
+                await event.send(event.plain_result(
+                    "功能菜单：\n"
+                    "1. 成语接龙\n"
+                    "2. 数字累加\n"
+                    "3. 简单问答\n"
+                    "请输入功能编号进入，或输入“退出”结束会话。"
+                ))
+            controller.keep(timeout=120, reset_timeout=True)
+            return
+
+        # 已经选择了模式
+        mode = self.current_mode[user_id]
+
+        # 回到菜单
+        if msg == "返回":
+            self.current_mode[user_id] = None
             await event.send(event.plain_result(
                 "功能菜单：\n"
                 "1. 成语接龙\n"
                 "2. 数字累加\n"
                 "3. 简单问答\n"
-                "请输入功能编号进入，或者输入“退出”结束。"
+                "请输入功能编号进入，或输入“退出”结束会话。"
             ))
-
-            @session_waiter(timeout=60, record_history_chains=False)
-            async def menu_session(controller: SessionController, event: AstrMessageEvent):
-                choice = event.message_str.strip()
-
-                if choice == "退出":
-                    await event.send(event.plain_result("已退出菜单~"))
-                    controller.stop()
-                    return
-
-                if choice == "1":
-                    await event.send(event.plain_result("进入成语接龙模式，输入成语，输入“退出”可结束~"))
-                    await self.start_idiom_game(event)  # ❗ 直接传 event
-                elif choice == "2":
-                    await event.send(event.plain_result("进入数字累加模式，输入数字，输入“退出”可结束~"))
-                    await self.start_number_sum(event)
-                elif choice == "3":
-                    await event.send(event.plain_result("进入简单问答模式，输入问题，输入“退出”可结束~"))
-                    await self.start_simple_qa(event)
-                else:
-                    await event.send(event.plain_result("无效选择，请输入 1, 2 或 3，或输入“退出”结束。"))
-
-                controller.keep(timeout=60, reset_timeout=True)
-
-            await menu_session(event)
-
-        except Exception as e:
-            await event.send(event.plain_result("发生错误：" + str(e)))
-
-    # 成语接龙
-    @session_waiter(timeout=60, record_history_chains=False)
-    async def start_idiom_game(self, controller: SessionController, event: AstrMessageEvent):
-        idiom = event.message_str.strip()
-
-        if idiom == "退出":
-            await event.send(event.plain_result("成语接龙已结束~"))
-            controller.stop()
+            controller.keep(timeout=120, reset_timeout=True)
             return
 
-        if len(idiom) != 4:
-            await event.send(event.plain_result("成语必须是四个字哦~"))
-        else:
-            await event.send(event.plain_result(f"你输入的成语是：{idiom}，接龙示例：先见之明"))
+        # 各模式处理逻辑
+        if mode == "idiom":
+            if msg == "退出":
+                await event.send(event.plain_result("菜单会话已退出~"))
+                self.current_mode.pop(user_id, None)
+                controller.stop()
+                return
+            if len(msg) != 4:
+                await event.send(event.plain_result("成语必须是四个字哦~"))
+            else:
+                await event.send(event.plain_result(f"你输入的成语是：{msg}，接龙示例：先见之明"))
 
-        controller.keep(timeout=60, reset_timeout=True)
+        elif mode == "sum":
+            if msg.isdigit():
+                self.sum_data[user_id] += int(msg)
+                await event.send(event.plain_result(f"当前总和：{self.sum_data[user_id]}"))
+            else:
+                await event.send(event.plain_result("请输入数字，或输入“返回”回菜单"))
 
-    # 数字累加
-    @session_waiter(timeout=60, record_history_chains=False)
-    async def start_number_sum(self, controller: SessionController, event: AstrMessageEvent):
-        user_id = event.get_sender_id()
-        if user_id not in self.sum_data:
-            self.sum_data[user_id] = 0
+        elif mode == "qa":
+            await event.send(event.plain_result(f"你问的是：{msg}\n我的回答是：这是一个演示回答~"))
 
-        msg = event.message_str.strip()
-
-        if msg == "退出":
-            await event.send(event.plain_result(f"数字累加结束，总和为：{self.sum_data[user_id]}"))
-            self.sum_data[user_id] = 0
-            controller.stop()
-            return
-
-        if msg.isdigit():
-            self.sum_data[user_id] += int(msg)
-            await event.send(event.plain_result(f"当前总和：{self.sum_data[user_id]}"))
-        else:
-            await event.send(event.plain_result("请输入数字或“退出”结束。"))
-
-        controller.keep(timeout=60, reset_timeout=True)
-
-    # 简单问答
-    @session_waiter(timeout=60, record_history_chains=False)
-    async def start_simple_qa(self, controller: SessionController, event: AstrMessageEvent):
-        question = event.message_str.strip()
-
-        if question == "退出":
-            await event.send(event.plain_result("问答会话已结束~"))
-            controller.stop()
-            return
-
-        # 测试回答
-        await event.send(event.plain_result(f"你问的是：{question}\n我的回答是：这是一个演示回答~"))
-
-        controller.keep(timeout=60, reset_timeout=True)
+        controller.keep(timeout=120, reset_timeout=True)
