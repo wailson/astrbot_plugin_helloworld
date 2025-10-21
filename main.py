@@ -6,7 +6,7 @@ from astrbot.core.utils.session_waiter import (
     SessionController,
 )
 
-# 用类封装插件功能并继承 Star
+@register("menu_plugin", "Wilson", "演示插件", "1.0.0")
 class MyPlugin(Star):
     # 菜单触发
     @filter.command("菜单")
