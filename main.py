@@ -1,7 +1,7 @@
 import astrbot.api.message_components as Comp
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Star, Context, register
-from astrbot.core.utils.session_waiter import session_waiter, SessionController
+from astrbot.core.utils.session_waiter import session_waiter, SessionController,SessionFilter
 
 @register("menu_plugin", "YourName", "一个带菜单的演示插件", "1.0.0")
 class MyPlugins(Star):
