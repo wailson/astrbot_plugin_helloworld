@@ -14,7 +14,7 @@ class MyPlugins(Star):
             yield event.plain_result(
                 "功能菜单：\n1. 成语接龙\n2. 数字累加\n3. 简单问答\n请输入功能编号进入，或者输入“退出”结束。"
             )
-            @session_waiter(session_filter=filter.session(),timeout=60, record_history_chains=False)
+            @session_waiter(timeout=60, record_history_chains=False)
             async def menu_waiter(controller: SessionController, event: AstrMessageEvent):
                 choice = event.message_str.strip()
                 if choice == "退出":
@@ -43,7 +43,7 @@ class MyPlugins(Star):
         except Exception as e:
             yield event.plain_result("发生错误：" + str(e))
     # 成语接龙功能
-    @session_waiter(session_filter=filter.session(),timeout=60, record_history_chains=False)
+    @session_waiter(timeout=60, record_history_chains=False)
     async def start_idiom_game(self, controller: SessionController, event: AstrMessageEvent):
         idiom = event.message_str.strip()
         if idiom == "退出":
@@ -59,7 +59,7 @@ class MyPlugins(Star):
     # 数字累加功能
     sum_data = {}
 
-    @session_waiter(session_filter=filter.session(),timeout=60, record_history_chains=False)
+    @session_waiter(timeout=60, record_history_chains=False)
     async def start_number_sum(self, controller: SessionController, event: AstrMessageEvent):
         user_id = event.get_sender_id()
         if user_id not in self.sum_data:
@@ -80,7 +80,7 @@ class MyPlugins(Star):
         controller.keep(timeout=60, reset_timeout=True)
 
     # 简单问答功能
-    @session_waiter(session_filter=filter.session(),timeout=60, record_history_chains=False)
+    @session_waiter(timeout=60, record_history_chains=False)
     async def start_simple_qa(self, controller: SessionController, event: AstrMessageEvent):
         question = event.message_str.strip()
         if question == "退出":
