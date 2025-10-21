@@ -23,7 +23,7 @@ class MenuPlugin(Star):
     # ===== 菜单入口，会话开始 =====
     @filter.command("菜单")
     @session_waiter(timeout=300, record_history_chains=False)
-    async def menu_session(self, controller: SessionController, event: AstrMessageEvent):
+    async def menu_session(self, event: AstrMessageEvent, controller: SessionController):
         """
         菜单选择会话入口
         只有在这个会话中输入数字才有效
@@ -59,7 +59,7 @@ class MenuPlugin(Star):
 
     # ===== 成语接龙模式 =====
     @session_waiter(timeout=60, record_history_chains=False)
-    async def start_idiom_game(self, controller: SessionController, event: AstrMessageEvent):
+    async def start_idiom_game(self, event: AstrMessageEvent, controller: SessionController):
         msg = event.message_str.strip()
 
         if msg == "返回":
@@ -82,7 +82,7 @@ class MenuPlugin(Star):
 
     # ===== 数字累加模式 =====
     @session_waiter(timeout=60, record_history_chains=False)
-    async def start_number_sum(self, controller: SessionController, event: AstrMessageEvent):
+    async def start_number_sum(self, event: AstrMessageEvent, controller: SessionController):
         user_id = event.get_sender_id()
         msg = event.message_str.strip()
 
@@ -111,7 +111,7 @@ class MenuPlugin(Star):
 
     # ===== 问答模式 =====
     @session_waiter(timeout=60, record_history_chains=False)
-    async def start_simple_qa(self, controller: SessionController, event: AstrMessageEvent):
+    async def start_simple_qa(self, event: AstrMessageEvent, controller: SessionController):
         msg = event.message_str.strip()
 
         if msg == "返回":
