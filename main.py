@@ -11,7 +11,7 @@ class MyPlugins(Star):
         self.current_mode = {}    # 存每个用户当前模式: None | 'idiom' | 'sum' | 'qa'
 
     @filter.command("菜单")
-    @session_waiter(timeout=60, record_history_chains=False)
+    @session_waiter(timeout=600, record_history_chains=False)
     async def menu_session(self, controller: SessionController, event: AstrMessageEvent):
         uid = event.get_sender_id()
         msg = event.message_str.strip()
