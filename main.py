@@ -7,7 +7,7 @@ from astrbot.core.utils.session_waiter import (
 )
 
 # 用类封装插件功能并继承 Star
-class astrbot_plugin_Cs(Star):
+class MyPlugin(Star):
     # 菜单触发
     @filter.command("菜单")
     async def show_menu(self, event: AstrMessageEvent):
