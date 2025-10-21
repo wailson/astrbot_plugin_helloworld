@@ -3,38 +3,45 @@ from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Star, Context, register
 from astrbot.core.utils.session_waiter import session_waiter, SessionController
 
-@register("menu_plugin", "YourName", "数字菜单演示插件", "1.0.0")
+
+@register("menu_plugin", "YourName", "数字菜单演示插件", "1.0.1")
 class MenuPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
-        # 存每个用户的状态数据
-        # {"uid": {"mode": None | "idiom" | "sum" | "qa", "sum_value": int}}
-        self.user_state = {}
+        # 存储用户会话状态数据
+        # uid: {"mode": None|"idiom"|"sum"|"qa", "sum_value": int}
+        self.user_state: dict[str, dict] = {}
 
     def show_menu(self) -> str:
+        """返回菜单文本"""
         return (
             "功能菜单：\n"
             "1. 成语接龙\n"
             "2. 数字累加\n"
             "3. 简单问答\n"
             "请输入 1 / 2 / 3 进入功能\n"
-            "输入“退出”结束会话"
+            "输入“返回”回菜单，输入“退出”结束会话"
         )
 
     @filter.command("菜单")
     @session_waiter(timeout=600, record_history_chains=False)
-    async def menu_session(self, controller: SessionController, event: AstrMessageEvent):
+    async def menu_session(
+        self,
+        controller: SessionController,
+        event: AstrMessageEvent
+    ):
+        """菜单会话控制入口"""
         uid = event.get_sender_id()
         msg = event.message_str.strip()
 
-        # 初始化用户状态
+        # 初始化用户状态并显示菜单
         if uid not in self.user_state:
             self.user_state[uid] = {"mode": None, "sum_value": 0}
             await event.send(event.plain_result(self.show_menu()))
             controller.keep(timeout=60, reset_timeout=True)
             return
 
-        # 退出会话
+        # 用户退出会话
         if msg == "退出":
             await event.send(event.plain_result("已退出菜单~"))
             self.user_state.pop(uid, None)
@@ -43,7 +50,7 @@ class MenuPlugin(Star):
 
         mode = self.user_state[uid]["mode"]
 
-        # 当前无模式，则进行模式选择
+        # 当前无模式 => 选择模式
         if mode is None:
             if msg == "1":
                 self.user_state[uid]["mode"] = "idiom"
@@ -67,11 +74,12 @@ class MenuPlugin(Star):
             controller.keep(timeout=60, reset_timeout=True)
             return
 
-        # 各模式逻辑
+        # 模式处理
         if mode == "idiom":
             if len(msg) != 4:
                 await event.send(event.plain_result("成语必须是四个字哦~"))
             else:
+                # 这里可以换成你的接龙逻辑
                 await event.send(event.plain_result(f"你输入的成语：{msg}\n接龙示例：先见之明"))
 
         elif mode == "sum":
@@ -79,9 +87,10 @@ class MenuPlugin(Star):
                 self.user_state[uid]["sum_value"] += int(msg)
                 await event.send(event.plain_result(f"当前总和：{self.user_state[uid]['sum_value']}"))
             else:
-                await event.send(event.plain_result("请输入数字，或“返回”回菜单"))
+                await event.send(event.plain_result("请输入数字，或输入“返回”回菜单"))
 
         elif mode == "qa":
+            # 简单问答示例
             await event.send(event.plain_result(f"你问的是：{msg}\n示例回答：这是一个测试回答"))
 
         controller.keep(timeout=60, reset_timeout=True)
