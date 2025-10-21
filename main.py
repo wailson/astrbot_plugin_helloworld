@@ -1,31 +1,34 @@
-import astrbot.api.message_components as Comp
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Star, Context, register
 from astrbot.core.utils.session_waiter import session_waiter, SessionController
 
-
-@register("menu_plugin", "YourName", "菜单单会话插件示例", "1.0.0")
-class MyPlugins(Star):
+@register("menu_plugin", "YourName", "菜单型插件示例", "1.0.0")
+class MenuPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
-        self.current_mode = {}  # 保存每个用户当前的模式
-        self.sum_data = {}      # 保存数字累加数据
+        # 保存每个用户的模式和数据
+        self.current_mode = {}  # 当前模式: None | 'idiom' | 'sum' | 'qa'
+        self.sum_data = {}      # 数字累加模式的数据
 
     @filter.command("菜单")
     @session_waiter(timeout=120, record_history_chains=False)
     async def menu_session(self, controller: SessionController, event: AstrMessageEvent):
+        """
+        单会话菜单：用户可选择不同功能，不开启子会话
+        """
         user_id = event.get_sender_id()
         msg = event.message_str.strip()
 
-        # 第一次进入菜单或用户还没选模式
-        if user_id not in self.current_mode or self.current_mode[user_id] is None:
-            if msg == "退出":
-                await event.send(event.plain_result("菜单会话已退出~"))
-                self.current_mode.pop(user_id, None)
-                self.sum_data.pop(user_id, None)
-                controller.stop()
-                return
+        # 退出整个菜单会话
+        if msg == "退出":
+            await event.send(event.plain_result("菜单会话已退出~"))
+            self.current_mode.pop(user_id, None)
+            self.sum_data.pop(user_id, None)
+            controller.stop()
+            return
 
+        # 如果当前没有选择模式，等待用户输入功能编号
+        if user_id not in self.current_mode or self.current_mode[user_id] is None:
             if msg == "1":
                 self.current_mode[user_id] = "idiom"
                 await event.send(event.plain_result("进入成语接龙模式，请输入成语，输入“返回”回菜单"))
@@ -63,13 +66,8 @@ class MyPlugins(Star):
             controller.keep(timeout=120, reset_timeout=True)
             return
 
-        # 各模式处理逻辑
+        # 处理不同模式的逻辑
         if mode == "idiom":
-            if msg == "退出":
-                await event.send(event.plain_result("菜单会话已退出~"))
-                self.current_mode.pop(user_id, None)
-                controller.stop()
-                return
             if len(msg) != 4:
                 await event.send(event.plain_result("成语必须是四个字哦~"))
             else:
