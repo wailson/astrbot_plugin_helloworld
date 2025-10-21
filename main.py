@@ -1,31 +1,21 @@
-import astrbot.api.message_components as Comp
-from astrbot.api.event import filter, AstrMessageEvent
-from astrbot.api.star import Star  # 入口基类
-from astrbot.core.utils.session_waiter import (
-    session_waiter,
-    SessionController,
-)
+@register("menu_plugin", "YourName", "一个带菜单的演示插件", "1.0.0")
+class MyPlugins(Star):
+    def __init__(self, context: Context):
+        super().__init__(context)
 
-@register("menu_plugin", "Wilson", "演示插件", "1.0.0")
-class MyPlugin(Star):
-    # 菜单触发
     @filter.command("菜单")
     async def show_menu(self, event: AstrMessageEvent):
         try:
             yield event.plain_result(
                 "功能菜单：\n1. 成语接龙\n2. 数字累加\n3. 简单问答\n请输入功能编号进入，或者输入“退出”结束。"
             )
-
-            # 会话控制器
             @session_waiter(timeout=60, record_history_chains=False)
             async def menu_waiter(controller: SessionController, event: AstrMessageEvent):
                 choice = event.message_str.strip()
-
                 if choice == "退出":
                     await event.send(event.plain_result("已退出菜单~"))
                     controller.stop()
                     return
-
                 if choice == "1":
                     await event.send(event.plain_result("进入成语接龙模式，输入成语，输入“退出”可结束~"))
                     await self.start_idiom_game(controller, event)
@@ -47,7 +37,6 @@ class MyPlugin(Star):
 
         except Exception as e:
             yield event.plain_result("发生错误：" + str(e))
-
     # 成语接龙功能
     @session_waiter(timeout=60, record_history_chains=False)
     async def start_idiom_game(self, controller: SessionController, event: AstrMessageEvent):
